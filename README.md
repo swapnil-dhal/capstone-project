@@ -13,7 +13,6 @@ This maintenance suite automates common system administration tasks for Linux se
 **System Backup**
 - Backs up Documents, Desktop, and Downloads folders with timestamp
 - Creates compressed tar.gz archives
-- Automatically keeps only the 5 most recent backups to save disk space
 - All backups stored in `~/backups` directory
 
 **System Update & Cleanup**
