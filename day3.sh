@@ -1,4 +1,3 @@
-# Script 3: Log Monitoring
 monitor_logs() {
     log_message "Starting log monitoring..."
     

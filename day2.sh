@@ -1,4 +1,3 @@
-# Script 2: System Update and Cleanup
 update_system() {
     log_message "Starting system update and cleanup..."
     

@@ -1,4 +1,3 @@
-# Script 1: System Backup
 backup_system() {
     log_message "Starting system backup..."
     
@@ -21,10 +20,6 @@ backup_system() {
             fi
         fi
     done
-    
-    # Clean old backups (keep last 5)
-    cd "$BACKUP_DIR"
-    ls -t *.tar.gz 2>/dev/null | tail -n +6 | xargs rm -f 2>/dev/null
     
     log_message "Backup completed. Location: $BACKUP_DIR"
 }

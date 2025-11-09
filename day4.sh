@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# System Maintenance Suite
-# A collection of scripts for automated system maintenance
+# Enhanced System Maintenance Suite
+# Includes Docker, Kubernetes, and Web Server monitoring
 
 LOG_FILE="$HOME/maintenance.log"
 
@@ -101,6 +101,108 @@ monitor_logs() {
     log_message "Log monitoring completed"
 }
 
+# NEW: Docker Management
+docker_maintenance() {
+    log_message "Starting Docker maintenance..."
+    
+    if ! command -v docker &> /dev/null; then
+        log_message "Docker is not installed or not in PATH"
+        return
+    fi
+    
+    # Show running containers
+    log_message "Running Docker containers:"
+    docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Image}}" | tee -a "$LOG_FILE"
+    
+    # Check for stopped containers
+    STOPPED_CONTAINERS=$(docker ps -a -f status=exited -q | wc -l)
+    log_message "Stopped containers: $STOPPED_CONTAINERS"
+    
+    # Clean up Docker resources
+    read -p "Do you want to clean up unused Docker resources? (y/n): " cleanup
+    if [[ $cleanup == "y" || $cleanup == "Y" ]]; then
+        log_message "Cleaning up Docker resources..."
+        docker system prune -f 2>&1 | tee -a "$LOG_FILE"
+        log_message "Docker cleanup completed"
+    fi
+    
+    # Show Docker disk usage
+    log_message "Docker disk usage:"
+    docker system df | tee -a "$LOG_FILE"
+    
+    log_message "Docker maintenance completed"
+}
+
+# NEW: Kubernetes Monitoring
+k8s_monitoring() {
+    log_message "Starting Kubernetes monitoring..."
+    
+    if ! command -v kubectl &> /dev/null; then
+        log_message "kubectl is not installed or not in PATH"
+        return
+    fi
+    
+    # Check cluster status
+    log_message "Checking Kubernetes cluster status..."
+    kubectl cluster-info 2>&1 | tee -a "$LOG_FILE"
+    
+    # Show all pods status
+    log_message "Pod status across all namespaces:"
+    kubectl get pods --all-namespaces | tee -a "$LOG_FILE"
+    
+    # Check for failed pods
+    FAILED_PODS=$(kubectl get pods --all-namespaces --field-selector=status.phase=Failed --no-headers 2>/dev/null | wc -l)
+    if [ "$FAILED_PODS" -gt 0 ]; then
+        log_message "WARNING: Found $FAILED_PODS failed pods!"
+        kubectl get pods --all-namespaces --field-selector=status.phase=Failed
+    else
+        log_message "All pods are healthy"
+    fi
+    
+    # Show node status
+    log_message "Node status:"
+    kubectl get nodes | tee -a "$LOG_FILE"
+    
+    # Show resource usage
+    log_message "Top resource-consuming pods:"
+    kubectl top pods --all-namespaces 2>/dev/null | head -10 | tee -a "$LOG_FILE"
+    
+    log_message "Kubernetes monitoring completed"
+}
+
+# NEW: Container & Service Status Dashboard
+service_dashboard() {
+    clear
+    echo "=================================="
+    echo "  Service Status Dashboard"
+    echo "=================================="
+    echo ""
+    
+    # System Info
+    echo "--- System Resources ---"
+    echo "CPU Load: $(uptime | awk -F'load average:' '{print $2}')"
+    echo "Memory: $(free -h | awk 'NR==2 {print $3 "/" $2}')"
+    echo "Disk: $(df -h / | awk 'NR==2 {print $5 " used"}')"
+    echo ""
+    
+    # Docker
+    if command -v docker &> /dev/null; then
+        echo "--- Docker Containers ---"
+        docker ps --format "{{.Names}}: {{.Status}}" 2>/dev/null || echo "No containers running"
+        echo ""
+    fi
+    
+    # Kubernetes
+    if command -v kubectl &> /dev/null; then
+        echo "--- Kubernetes Pods ---"
+        kubectl get pods --all-namespaces --no-headers 2>/dev/null | awk '{print $2 ": " $4}' | head -5 || echo "Cluster not accessible"
+        echo ""
+    fi
+    
+    echo ""
+    read -p "Press Enter to continue..."
+}
+
 # Script 4: Full Maintenance
 full_maintenance() {
     log_message "=== Starting full system maintenance ==="
@@ -109,23 +211,35 @@ full_maintenance() {
     update_system
     echo ""
     monitor_logs
+    echo ""
+    docker_maintenance
+    echo ""
+    k8s_monitoring
     log_message "=== Full maintenance completed ==="
 }
 
 # Main Menu
 show_menu() {
     clear
-    echo "=================================="
-    echo "  System Maintenance Suite"
-    echo "=================================="
-    echo "1. System Backup"
-    echo "2. System Update & Cleanup"
-    echo "3. Log Monitoring"
-    echo "4. Full Maintenance (All tasks)"
-    echo "5. View Log File"
-    echo "6. Exit"
-    echo "=================================="
-    echo -n "Select an option [1-6]: "
+    echo "========================================="
+    echo "  Enhanced System Maintenance Suite"
+    echo "========================================="
+    echo "Basic Tasks:"
+    echo "  1. System Backup"
+    echo "  2. System Update & Cleanup"
+    echo "  3. Log Monitoring"
+    echo ""
+    echo "Container & Web Services:"
+    echo "  4. Docker Maintenance"
+    echo "  5. Kubernetes Monitoring"
+    echo "  6. Service Dashboard"
+    echo ""
+    echo "Advanced:"
+    echo "  7. Full Maintenance (All tasks)"
+    echo "  8. View Log File"
+    echo "  0. Exit"
+    echo "========================================="
+    echo -n "Select an option [0-8]: "
 }
 
 # Main Loop
@@ -147,10 +261,21 @@ while true; do
             read -p "Press Enter to continue..."
             ;;
         4)
-            full_maintenance
+            docker_maintenance
             read -p "Press Enter to continue..."
             ;;
         5)
+            k8s_monitoring
+            read -p "Press Enter to continue..."
+            ;;
+        6)
+            service_dashboard
+            ;;
+        7)
+            full_maintenance
+            read -p "Press Enter to continue..."
+            ;;
+        8)
             if [ -f "$LOG_FILE" ]; then
                 less "$LOG_FILE"
             else
@@ -158,7 +283,7 @@ while true; do
                 read -p "Press Enter to continue..."
             fi
             ;;
-        6)
+        0)
             log_message "Exiting maintenance suite"
             echo "Goodbye!"
             exit 0
